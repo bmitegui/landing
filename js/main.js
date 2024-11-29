@@ -1,11 +1,13 @@
 const databaseURL = 'https://landing-678d3-default-rtdb.firebaseio.com/collection.json';
+
+// Función para enviar datos al servidor
 let sendData = () => {
-
     // Obtén los datos del formulario
-    const formData = new FormData(form);
+    const formData = new FormData(document.getElementById('contact-form'));
     const data = Object.fromEntries(formData.entries()); // Convierte FormData a objeto
-    data['saved'] = new Date().toLocaleString('es-CO', { timeZone: 'America/Guayaquil' })
+    data['saved'] = new Date().toLocaleString('es-CO', { timeZone: 'America/Guayaquil' });
 
+    // Realizar la solicitud POST a Firebase
     fetch(databaseURL, {
         method: 'POST', // Método de la solicitud
         headers: {
@@ -20,99 +22,104 @@ let sendData = () => {
             return response.json(); // Procesa la respuesta como JSON
         })
         .then(result => {
-            alert('Agradeciendo tu preferencia, nos mantenemos actualizados y enfocados en atenderte como mereces'); // Maneja la respuesta con un mensaje
-            form.reset()
-            getData()
+            alert('Gracias por contactarnos, nos aseguraremos de mantenernos en contacto!'); // Respuesta exitosa
+            document.getElementById('contact-form').reset(); // Resetear el formulario
+            getData(); // Actualizar la lista de datos mostrada
         })
         .catch(error => {
-            alert('Hemos experimentado un error. ¡Vuelve pronto!'); // Maneja el error con un mensaje
+            alert('Hubo un error al procesar tu solicitud. ¡Intenta de nuevo más tarde!'); // Manejar error
         });
-
 }
 
+// Función para obtener los datos de los contactos desde Firebase
 let getData = async () => {
-
     try {
-
-        // Realiza la petición fetch a la URL de la base de datos
+        // Realiza la petición fetch para obtener los datos
         const response = await fetch(databaseURL);
 
-        // Verifica si la respuesta es exitosa
         if (!response.ok) {
-            alert('Hemos experimentado un error. ¡Vuelve pronto!'); // Maneja el error con un mensaje
+            alert('Hubo un error al obtener los datos. ¡Vuelve pronto!'); // Manejar error
+            return; // Salir de la función si no hay respuesta
         }
 
-        // Convierte la respuesta en formato JSON
         const data = await response.json();
 
         if (data != null) {
+            // Mapas para contar suscriptores y votos por personaje
+            let countContacts = new Map();
+            let countCharacters = {
+                meredith: 0,
+                derek: 0,
+                bailey: 0
+            };
 
-            // Cuente el número de suscriptores registrados por fecha a partir del objeto data
+            // Recorrer los datos recibidos y contar las entradas
+            for (let key in data) {
+                let { email, saved, 'favorite-character': character } = data[key];
 
+                // Obtener solo la fecha (sin la hora)
+                let date = saved.split(",")[0];
 
-            let countSuscribers = new Map()
+                // Contar suscriptores por fecha
+                let count = countContacts.get(date) || 0;
+                countContacts.set(date, count + 1);
 
-            if (Object.keys(data).length > 0) {
-                for (let key in data) {
-
-                    let { email, saved } = data[key]
-
-                    let date = saved.split(",")[0]
-
-                    let count = countSuscribers.get(date) || 0;
-                    countSuscribers.set(date, count + 1)
+                // Contar votos por personaje
+                if (character === 'meredith') {
+                    countCharacters.meredith++;
+                } else if (character === 'derek') {
+                    countCharacters.derek++;
+                } else if (character === 'bailey') {
+                    countCharacters.bailey++;
                 }
             }
-            // END
 
-            // Genere y agregue filas de una tabla HTML para mostrar fechas y cantidades de suscriptores almacenadas 
-            if (countSuscribers.size > 0) {
+            // Mostrar los datos en una tabla
+            const dataTable = document.getElementById('data-table');
+            dataTable.innerHTML = ''; // Limpiar la tabla antes de agregar nuevos datos
 
-                subscribers.innerHTML = ''
-
-                for (let [date, count] of countSuscribers) {
-                    let rowTemplate = `
-                        <tr>
-                            <th scope="row">1</th>
-                            <td>${date}</td>
-                            <td>${count}</td>
-                        </tr>`
-                    subscribers.innerHTML += rowTemplate
-                }
+            // Mostrar los suscriptores por fecha y votos por personaje
+            for (let [date, count] of countContacts) {
+                const rowTemplate = `
+                    <tr>
+                        <th scope="row">${date}</th>
+                        <td>${count}</td>
+                    </tr>`;
+                dataTable.innerHTML += rowTemplate;
             }
-            // END
 
+            // Mostrar los votos por personaje de manera separada
+            const characterVotesSection = document.getElementById('character-votes');
+            characterVotesSection.innerHTML = `
+                <p>Meredith Grey: ${countCharacters.meredith} votos</p>
+                <p>Derek Shepherd: ${countCharacters.derek} votos</p>
+                <p>Miranda Bailey: ${countCharacters.bailey} votos</p>
+            `;
         }
 
     } catch (error) {
-        // Muestra cualquier error que ocurra durante la petición
-        alert('Hemos experimentado un error. ¡Vuelve pronto!'); // Maneja el error con un mensaje
+        alert('Hubo un error al procesar la solicitud. ¡Intenta de nuevo más tarde!');
     }
-
-
-
-
-
-
 }
 
 
-
+// Función para asegurarse de que el DOM esté listo
 let ready = () => {
-    console.log('DOM está listo')
+    console.log('DOM está listo');
 }
 
+// Función para manejar los eventos de carga
 let loaded = () => {
-    console.log('Iframes e Images cargadas')
-    let myform = document.getElementById('form');
+    console.log('Iframes e imágenes cargadas');
+    const myform = document.getElementById('contact-form');
     myform.addEventListener('submit', (eventSubmit) => {
-        eventSubmit.preventDefault();
+        eventSubmit.preventDefault(); // Prevenir el comportamiento por defecto
 
         const emailElement = document.querySelector('.form-control-lg');
-
         const emailText = emailElement.value;
 
         if (emailText.length === 0) {
+            // Animación si no se ingresa un email
             emailElement.animate(
                 [
                     { transform: "translateX(0)" },
@@ -124,17 +131,19 @@ let loaded = () => {
                     duration: 400,
                     easing: "linear",
                 }
-            )
-            emailElement.focus()
-            return
+            );
+            emailElement.focus();
+            return;
         }
 
-        sendData();
-    })
-
+        sendData(); // Llamar a la función para enviar los datos
+    });
 }
 
-
-
-window.addEventListener("DOMContentLoaded", ready);
-window.addEventListener("load", loaded)
+// Esperar que el DOM se cargue
+window.addEventListener("DOMContentLoaded", () => {
+    // Llamar a getData cuando la página se cargue
+    getData();
+});
+// Esperar que todo se haya cargado completamente
+window.addEventListener("load", loaded);
